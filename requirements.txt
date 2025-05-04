@@ -1,0 +1,11 @@
+PyQt5
+FPDF
+schedule
+PyQt5==5.15.4
+watchdog==2.1.7
+reportlab==3.6.0
+smtplib==0.1.0
+sqlite3==2.6.0
+matplotlib 
+pandas
+jinja2

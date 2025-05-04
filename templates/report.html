@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Relatório FMI</title>
+    <style>
+        body { font-family: Arial; padding: 20px; }
+        h1 { text-align: center; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+        th { background-color: #eee; }
+    </style>
+</head>
+<body>
+    <img src="{{ logo }}" height="80" alt="Logo da Empresa">
+    <h1>Relatório de Monitoramento</h1>
+    <p>Período: {{ start }} até {{ end }}</p>
+    <table>
+        <thead>
+            <tr><th>Data/Hora</th><th>Usuário</th><th>Ação</th></tr>
+        </thead>
+        <tbody>
+            {% for log in logs %}
+            <tr><td>{{ log.timestamp }}</td><td>{{ log.user }}</td><td>{{ log.action }}</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

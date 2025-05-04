@@ -1,0 +1,11 @@
+{
+    "monitor_path": "C:/Users/Andre/Downloads",
+    "company_logo": "assets/logo.png",
+    "smtp": {
+        "host": "smtp.exemplo.com",
+        "port": 587,
+        "email": "usuario@empresa.com",
+        "password": "senha123",
+        "use_tls": true
+    }
+}
