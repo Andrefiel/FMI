@@ -1,104 +1,75 @@
-import sqlite3
-import pandas as pd
-import matplotlib.pyplot as plt
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel
-from jinja2 import Template
-import os
+from PyQt5.QtWidgets import (
+    QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QTextBrowser,
+    QLabel, QComboBox, QMessageBox, QSizePolicy
+)
+from PyQt5.QtCore import Qt
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
 
-class ReportTab(QWidget):
-    def __init__(self):
-        super().__init__()
+class ReportsTab(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
 
         self.layout = QVBoxLayout()
-        self.label = QLabel("Relatório de Eventos")
-        self.layout.addWidget(self.label)
+
+        # Período do relatório
+        period_layout = QHBoxLayout()
+        period_label = QLabel("Período:")
+        self.period_combo = QComboBox()
+        self.period_combo.addItems(["Diário", "Semanal", "Mensal"])
+        period_layout.addWidget(period_label)
+        period_layout.addWidget(self.period_combo)
+        self.layout.addLayout(period_layout)
+
+        # Botões
+        button_layout = QHBoxLayout()
+        self.generate_button = QPushButton("Gerar Relatório")
+        self.export_pdf_button = QPushButton("Exportar para PDF")
+        self.export_html_button = QPushButton("Exportar para HTML")
+        self.send_email_button = QPushButton("Enviar por E-mail")
+
+        button_layout.addWidget(self.generate_button)
+        button_layout.addWidget(self.export_pdf_button)
+        button_layout.addWidget(self.export_html_button)
+        button_layout.addWidget(self.send_email_button)
+        self.layout.addLayout(button_layout)
+
+        # Visualização do relatório
+        self.report_view = QTextBrowser()
+        self.report_view.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.layout.addWidget(self.report_view)
+
+        # Área de gráficos
+        self.figure = Figure(figsize=(5, 3))
+        self.canvas = FigureCanvas(self.figure)
+        self.layout.addWidget(self.canvas)
+
         self.setLayout(self.layout)
 
-        self.db_path = 'monitoring_data.db'  # Caminho para o seu banco de dados
-        self.load_data()
-
-    def load_data(self):
-        """ Carrega dados do banco de dados e gera os gráficos """
-        # Conectar ao banco de dados SQLite
-        conn = sqlite3.connect(self.db_path)
-
-        # Verificar as colunas da tabela 'monitoring_events'
-        cursor = conn.cursor()
-        cursor.execute("PRAGMA table_info(monitoring_events);")
-        columns = cursor.fetchall()
-
-        # Exibir as colunas para depuração
-        print("Colunas da tabela 'monitoring_events':")
-        for column in columns:
-            print(f"Coluna: {column[1]}")
-
-        # Suponhamos que as colunas sejam 'created', 'modified' e 'deleted' (ajuste conforme necessário)
-        query = "SELECT * FROM monitoring_events"
-        df = pd.read_sql(query, conn)
-
-        # Se as colunas existirem, gera o gráfico
-        if 'created' in df.columns and 'modified' in df.columns and 'deleted' in df.columns:
-            df[['created', 'modified', 'deleted']].plot(kind='bar')
-
-            plt.title("Monitoramento de Eventos")
-            plt.xlabel("Data")
-            plt.ylabel("Quantidade de Eventos")
-            plt.xticks(rotation=45)
-            plt.tight_layout()
-
-            # Exibir o gráfico
-            plt.show()
-        else:
-            print("As colunas 'created', 'modified' e 'deleted' não estão presentes na tabela!")
-
-        # Fechar a conexão
-        conn.close()
+        # Conexões
+        self.generate_button.clicked.connect(self.generate_report)
+        self.export_pdf_button.clicked.connect(self.export_pdf)
+        self.export_html_button.clicked.connect(self.export_html)
+        self.send_email_button.clicked.connect(self.send_email)
 
     def generate_report(self):
-        """ Gerar relatório em HTML usando Jinja2 """
-        # Definindo o modelo do relatório
-        html_template = """
-        <html>
-        <head><title>Relatório de Eventos</title></head>
-        <body>
-            <h1>Relatório de Monitoramento</h1>
-            <p>Aqui estão as estatísticas de monitoramento:</p>
-            <table border="1">
-                <tr>
-                    <th>Evento</th>
-                    <th>Quantidade</th>
-                </tr>
-                <tr>
-                    <td>Criações</td>
-                    <td>{{ created_count }}</td>
-                </tr>
-                <tr>
-                    <td>Alterações</td>
-                    <td>{{ modified_count }}</td>
-                </tr>
-                <tr>
-                    <td>Exclusões</td>
-                    <td>{{ deleted_count }}</td>
-                </tr>
-            </table>
-        </body>
-        </html>
-        """
+        # Placeholder para gerar HTML do relatório e desenhar gráfico
+        period = self.period_combo.currentText()
+        self.report_view.setHtml(f"<h2>Relatório {period}</h2><p>Conteúdo gerado aqui...</p>")
+        self.draw_graph()
 
-        # Dados de exemplo (ajuste conforme os dados reais)
-        data = {
-            'created_count': 100,
-            'modified_count': 50,
-            'deleted_count': 20
-        }
+    def export_pdf(self):
+        QMessageBox.information(self, "Exportar PDF", "Funcionalidade em desenvolvimento.")
 
-        # Criando o template e renderizando
-        template = Template(html_template)
-        html_output = template.render(data)
+    def export_html(self):
+        QMessageBox.information(self, "Exportar HTML", "Funcionalidade em desenvolvimento.")
 
-        # Salvando o relatório em HTML
-        with open('relatorio_eventos.html', 'w') as file:
-            file.write(html_output)
+    def send_email(self):
+        QMessageBox.information(self, "Enviar E-mail", "Funcionalidade em desenvolvimento.")
 
-        print("Relatório HTML gerado com sucesso!")
-
+    def draw_graph(self):
+        self.figure.clear()
+        ax = self.figure.add_subplot(111)
+        ax.bar(["Criados", "Modificados", "Excluídos"], [10, 5, 3])
+        ax.set_title("Resumo de Arquivos")
+        self.canvas.draw()

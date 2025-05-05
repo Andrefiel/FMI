@@ -1,5 +1,5 @@
 {
-    "monitor_path": "C:/Users/Andre/Downloads",
+    "monitor_path": "/home/andre/Desktop",
     "company_logo": "assets/logo.png",
     "smtp": {
         "host": "smtp.exemplo.com",

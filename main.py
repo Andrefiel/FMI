@@ -4,8 +4,9 @@ from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QApplication, QMainWindow, QSystemTrayIcon, QMenu, QAction, QTabWidget, QMessageBox
 from PyQt5.QtWidgets import QVBoxLayout, QWidget, QPushButton
 from gui.monitor_tab import MonitorTab
-from gui.reports_tab import ReportTab
+from gui.reports_tab import ReportsTab
 from gui.config_tab import ConfigTab
+import pandas as pd
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -13,17 +14,17 @@ class MainWindow(QMainWindow):
         self.setWindowTitle('FMI - Monitoramento de Arquivos')
         self.setGeometry(100, 100, 800, 600)
         self.setWindowIcon(QIcon("assets/icon.ico"))
-        
+
         # Criando as guias
         self.tabs = QTabWidget(self)
         self.monitor_tab = MonitorTab()
-        self.reports_tab = ReportTab()
+        self.reports_tab = ReportsTab()
         self.config_tab = ConfigTab()
 
         self.tabs.addTab(self.monitor_tab, "Monitoramento")
         self.tabs.addTab(self.reports_tab, "Relatórios")
         self.tabs.addTab(self.config_tab, "Configurações")
-        
+
         self.setCentralWidget(self.tabs)
 
         # Adicionando ícone na bandeja do sistema
