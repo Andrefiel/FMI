@@ -1,10 +1,20 @@
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QTextBrowser,
-    QLabel, QComboBox, QMessageBox, QSizePolicy
+    QLabel, QComboBox, QMessageBox, QSizePolicy, QFileDialog
 )
 from PyQt5.QtCore import Qt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
+import sqlite3
+from datetime import datetime, timedelta
+import os
+import smtplib
+import json
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+import threading
+import schedule
+import time
 
 class ReportsTab(QWidget):
     def __init__(self, parent=None):
@@ -52,24 +62,161 @@ class ReportsTab(QWidget):
         self.export_html_button.clicked.connect(self.export_html)
         self.send_email_button.clicked.connect(self.send_email)
 
-    def generate_report(self):
-        # Placeholder para gerar HTML do relatório e desenhar gráfico
-        period = self.period_combo.currentText()
-        self.report_view.setHtml(f"<h2>Relatório {period}</h2><p>Conteúdo gerado aqui...</p>")
-        self.draw_graph()
+        self.current_report_html = ""
+
+        self.start_scheduler()
+
+def generate_report(self):
+    period = self.period_combo.currentText()
+    since = self.get_period_start(period)
+
+    conn = sqlite3.connect("event_logs.db")
+    cursor = conn.cursor()
+    cursor.execute("SELECT timestamp, event_type, file_path FROM events WHERE timestamp >= ?", (since,))
+    rows = cursor.fetchall()
+    conn.close()
+
+    created = sum(1 for r in rows if r[1] == "created")
+    modified = sum(1 for r in rows if r[1] == "modified")
+    deleted = sum(1 for r in rows if r[1] == "deleted")
+
+    # Gerar gráfico
+    self.draw_graph(created, modified, deleted)
+
+    # Logo da empresa vinda de config/config.json
+    logo_path = ""
+    try:
+        with open("config/config.json", "r") as f:
+            config_data = json.load(f)
+            logo_path = config_data.get("company_logo", "")
+    except Exception as e:
+        print(f"Erro ao carregar config.json: {e}")
+
+    logo_html = f'<img src="{logo_path}" height="50">' if logo_path and os.path.exists(logo_path) else ""
+
+    html = f"""
+    <html>
+    <body>
+        {logo_html}
+        <h2>Relatório {period}</h2>
+        <p><b>Período a partir de:</b> {since}</p>
+        <ul>
+            <li><b>Arquivos Criados:</b> {created}</li>
+            <li><b>Arquivos Modificados:</b> {modified}</li>
+            <li><b>Arquivos Excluídos:</b> {deleted}</li>
+            <li><b>Total de eventos:</b> {len(rows)}</li>
+        </ul>
+        <h3>Eventos Registrados</h3>
+        <table border="1" cellpadding="5" cellspacing="0">
+            <tr><th>Data/Hora</th><th>Tipo</th><th>Caminho do Arquivo</th></tr>
+            {''.join(f'<tr><td>{r[0]}</td><td>{r[1]}</td><td>{r[2]}</td></tr>' for r in rows)}
+        </table>
+    </body>
+    </html>
+    """
+
+    self.current_report_html = html
+    self.report_view.setHtml(html)
+
+    def get_period_start(self, period):
+        now = datetime.now()
+        if period == "Diário":
+            return (now - timedelta(days=1)).isoformat()
+        elif period == "Semanal":
+            return (now - timedelta(weeks=1)).isoformat()
+        elif period == "Mensal":
+            return (now - timedelta(days=30)).isoformat()
+        return now.isoformat()
 
     def export_pdf(self):
-        QMessageBox.information(self, "Exportar PDF", "Funcionalidade em desenvolvimento.")
+        try:
+            from xhtml2pdf import pisa
+        except ImportError:
+            QMessageBox.critical(self, "Erro", "Biblioteca xhtml2pdf não instalada. Use 'pip install xhtml2pdf'.")
+            return
+
+        if not self.current_report_html:
+            QMessageBox.warning(self, "Aviso", "Gere um relatório antes de exportar.")
+            return
+
+        file_path, _ = QFileDialog.getSaveFileName(self, "Salvar PDF", "relatorio.pdf", "PDF Files (*.pdf)")
+        if not file_path:
+            return
+
+        with open(file_path, "wb") as f:
+            pisa_status = pisa.CreatePDF(self.current_report_html, dest=f)
+
+        if pisa_status.err:
+            QMessageBox.critical(self, "Erro", "Falha ao exportar PDF.")
+        else:
+            QMessageBox.information(self, "Sucesso", f"PDF salvo em: {file_path}")
 
     def export_html(self):
-        QMessageBox.information(self, "Exportar HTML", "Funcionalidade em desenvolvimento.")
+        if not self.current_report_html:
+            QMessageBox.warning(self, "Aviso", "Gere um relatório antes de exportar.")
+            return
+
+        file_path, _ = QFileDialog.getSaveFileName(self, "Salvar HTML", "relatorio.html", "HTML Files (*.html)")
+        if not file_path:
+            return
+
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(self.current_report_html)
+
+        QMessageBox.information(self, "Sucesso", f"HTML salvo em: {file_path}")
 
     def send_email(self):
-        QMessageBox.information(self, "Enviar E-mail", "Funcionalidade em desenvolvimento.")
+        if not self.current_report_html:
+            QMessageBox.warning(self, "Aviso", "Gere um relatório antes de enviar.")
+            return
 
-    def draw_graph(self):
+        try:
+            with open("config.json", "r") as f:
+                config = json.load(f)
+
+            msg = MIMEMultipart("alternative")
+            msg["Subject"] = "Relatório Automático"
+            msg["From"] = config["email"]
+            msg["To"] = config["destinatario"]
+
+            msg.attach(MIMEText(self.current_report_html, "html"))
+
+            server = smtplib.SMTP(config["smtp_server"], config["smtp_port"])
+            server.starttls()
+            server.login(config["email"], config["password"])
+            server.sendmail(config["email"], config["destinatario"], msg.as_string())
+            server.quit()
+
+            QMessageBox.information(self, "Sucesso", "E-mail enviado com sucesso!")
+
+        except Exception as e:
+            QMessageBox.critical(self, "Erro", f"Falha ao enviar e-mail:\n{str(e)}")
+
+    def draw_graph(self, created=0, modified=0, deleted=0):
         self.figure.clear()
         ax = self.figure.add_subplot(111)
-        ax.bar(["Criados", "Modificados", "Excluídos"], [10, 5, 3])
+        ax.bar(["Criados", "Modificados", "Excluídos"], [created, modified, deleted])
         ax.set_title("Resumo de Arquivos")
         self.canvas.draw()
+
+    def start_scheduler(self):
+        def run_scheduler():
+            while True:
+                schedule.run_pending()
+                time.sleep(1)
+
+        try:
+            with open("config/email_schedule.json", "r") as f:
+                sched_conf = json.load(f)
+                horario = sched_conf.get("horario")
+                if horario:
+                    schedule.every().day.at(horario).do(self.auto_send_report)
+                    thread = threading.Thread(target=run_scheduler, daemon=True)
+                    thread.start()
+
+        except Exception as e:
+            print(f"Erro no agendamento: {e}")
+
+    def auto_send_report(self):
+        self.generate_report()
+        self.send_email()

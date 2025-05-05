@@ -8,3 +8,4 @@ sqlite3
 matplotlib
 pandas
 jinja2
+xhtml2pdf

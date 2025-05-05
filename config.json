@@ -8,4 +8,5 @@
         "password": "senha123",
         "use_tls": true
     }
+    "horario": "08:00"
 }
